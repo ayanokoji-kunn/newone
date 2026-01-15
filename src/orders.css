@@ -1,0 +1,17 @@
+.orders-page {
+  padding: 20px;
+}
+
+.order-item {
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.screenshot {
+  max-width: 300px;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  margin-top: 10px;
+}

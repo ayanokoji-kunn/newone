@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
+import { Routes, Route, useNavigate } from "react-router-dom";
 import { supabase } from "./supabase";
 import "./App.css";
+import Resources from "./Resources";
+import Quiz from "./Quiz";
+import UploadTest from "./uploadtest"; // 👈 make sure filename matches exactly
 
-function App() {
+function RegistrationForm() {
+  const navigate = useNavigate();
+
   const [universities, setUniversities] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [universityId, setUniversityId] = useState("");
@@ -10,24 +16,54 @@ function App() {
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [screenshot, setScreenshot] = useState(null);
+  const [statusMessage, setStatusMessage] = useState("");
 
+  // Load universities and departments
   useEffect(() => {
     const fetchData = async () => {
-      const { data: uniData, error: uniError } = await supabase
-        .from("University")
-        .select("*");
-      const { data: deptData, error: deptError } = await supabase
-        .from("department")
-        .select("*");
-
-      console.log("Universities:", uniData, "Error:", uniError);
-      console.log("Departments:", deptData, "Error:", deptError);
-
+      const { data: uniData } = await supabase.from("University").select("*");
+      const { data: deptData } = await supabase.from("department").select("*");
       setUniversities(uniData || []);
       setDepartments(deptData || []);
     };
     fetchData();
   }, []);
+
+  // Poll Supabase every 5s for approval
+  useEffect(() => {
+    if (!username) return;
+
+    const interval = setInterval(async () => {
+      const { data, error } = await supabase
+        .from("Orders")
+        .select("status, university_id, department_id")
+        .eq("telegram_username", username)
+        .order("id", { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error("Supabase error:", error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const order = data[0];
+        if (order.status === "approved") {
+          clearInterval(interval);
+          navigate(
+            `/resources?university=${order.university_id}&department=${order.department_id}`
+          );
+        } else if (order.status === "pending") {
+          setStatusMessage("⏳ Waiting for admin approval...");
+        } else if (order.status === "rejected") {
+          clearInterval(interval);
+          setStatusMessage("❌ Registration rejected. Please contact support.");
+        }
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [username, navigate]);
 
   const handleSubmit = async () => {
     const { error } = await supabase.from("Orders").insert({
@@ -40,14 +76,14 @@ function App() {
     });
 
     if (error) alert("Error: " + error.message);
-    else alert("Submitted successfully!");
+    else alert("Submitted successfully! Please wait for admin approval.");
   };
 
   const selectedUniversity = universities.find((u) => u.id === universityId);
   const selectedDepartment = departments.find((d) => d.id === departmentId);
 
   return (
-    <form>
+    <form onSubmit={(e) => e.preventDefault()}>
       <h2>Student Registration</h2>
 
       <label>University:</label>
@@ -100,44 +136,65 @@ function App() {
       </button>
 
       {selectedUniversity && <p>Selected University: {selectedUniversity.name}</p>}
-      {selectedDepartment && <p>Selected Department: {selectedDepartment.name}</p>}
+      {selectedDepartment && (
+        <p>
+          Selected Department: {selectedDepartment.name} — {selectedDepartment.price_birr} birr
+        </p>
+      )}
+      {statusMessage && <p>{statusMessage}</p>}
 
-     {/* 🔒 Payment Instructions Section */}
-<div style={{ marginTop: "20px", padding: "10px", border: "1px solid #ccc" }}>
-  <h3>Payment Instructions</h3>
-  <p>
-    Please transfer the required amount to the following account at the
-    Commercial Bank of Ethiopia:
-  </p>
-  <p><strong>Account Name:</strong> Israel Hailegebreal Worku</p>
-  <p>
-    <strong>Account Number:</strong> 1000622322963{" "}
-    <button
-      type="button"
-      onClick={() => {
-        navigator.clipboard.writeText("1000622322963");
-        alert("Account number copied to clipboard!");
-      }}
-      style={{
-        marginLeft: "10px",
-        padding: "5px 10px",
-        cursor: "pointer",
-        backgroundColor: "#4CAF50",
-        color: "white",
-        border: "none",
-        borderRadius: "4px"
-      }}
-    >
-      Copy
-    </button>
-  </p>
-  <p><strong>Bank:</strong> Commercial Bank of Ethiopia</p>
-  <p>
-    After completing the payment, upload the screenshot of your receipt
-    above before submitting the form.
-  </p>
-</div>
+      <div
+        style={{ marginTop: "20px", padding: "10px", border: "1px solid #ccc" }}
+      >
+        <h3>Payment Instructions</h3>
+        <p>
+          Please transfer the required amount to the following account at the
+          Commercial Bank of Ethiopia:
+        </p>
+        <p>
+          <strong>Account Name:</strong> Israel Hailegebreal Worku
+        </p>
+        <p>
+          <strong>Account Number:</strong> 1000622322963{" "}
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("1000622322963");
+              alert("Account number copied to clipboard!");
+            }}
+            style={{
+              marginLeft: "10px",
+              padding: "5px 10px",
+              cursor: "pointer",
+              backgroundColor: "#4CAF50",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+            }}
+          >
+            Copy
+          </button>
+        </p>
+        <p>
+          <strong>Bank:</strong> Commercial Bank of Ethiopia
+        </p>
+        <p>
+          After completing the payment, upload the screenshot of your receipt
+          above before submitting the form.
+        </p>
+      </div>
     </form>
+  );
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<RegistrationForm />} />
+      <Route path="/resources" element={<Resources />} />
+      <Route path="/quiz/:id" element={<Quiz />} />
+      <Route path="/uploadtest" element={<UploadTest />} /> {/* 👈 debug route */}
+    </Routes>
   );
 }
 
