@@ -209,7 +209,7 @@ function RegistrationForm() {
 function App() {
   const navigate = useNavigate();
 
-  // ✅ Auto-login on app load: if a saved username has an approved order, skip login/registration
+  // ✅ Auto-login on app load: only redirect from "/" (login)
   useEffect(() => {
     const checkAutoLogin = async () => {
       const savedUsername = localStorage.getItem("username");
@@ -227,7 +227,12 @@ function App() {
         return;
       }
 
-      if (data && data.length > 0 && data[0].status === "approved") {
+      if (
+        data &&
+        data.length > 0 &&
+        data[0].status === "approved" &&
+        window.location.pathname === "/" // 👈 only redirect if on login page
+      ) {
         navigate(
           `/resources?university=${data[0].university_id}&department=${data[0].department_id}`
         );
