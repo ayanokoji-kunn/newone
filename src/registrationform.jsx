@@ -14,7 +14,7 @@ export default function RegistrationForm() {
   const [statusMessage, setStatusMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
-  const [session, setSession] = useState(null); // track auth session
+  const [session, setSession] = useState(null);
 
   // Recover session on load
   useEffect(() => {
@@ -95,7 +95,7 @@ export default function RegistrationForm() {
 
       if (uploadError) throw uploadError;
 
-      // Insert order row with screenshot path + auth_user_id if available
+      // Insert order row — always allow submission
       const { error: insertError } = await supabase.from("Orders").insert({
         university_id: parseInt(universityId),
         department_id: parseInt(departmentId),
@@ -103,7 +103,7 @@ export default function RegistrationForm() {
         telegram_username: username,
         screenshot_url: storagePath,
         status: "pending",
-        auth_user_id: session?.user?.id || null, // ✅ attach if logged in
+        auth_user_id: session?.user?.id || null, // attach if available, else null
       });
 
       if (insertError) throw insertError;
