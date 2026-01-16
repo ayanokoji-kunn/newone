@@ -5,6 +5,7 @@ import "./App.css";
 import Resources from "./Resources";
 import Quiz from "./Quiz";
 import UploadTest from "./uploadtest"; // 👈 make sure filename matches exactly
+import Login from "./Login"; // 👈 import login page
 
 function RegistrationForm() {
   const navigate = useNavigate();
@@ -66,6 +67,9 @@ function RegistrationForm() {
   }, [username, navigate]);
 
   const handleSubmit = async () => {
+    // Get the currently logged-in Supabase Auth user
+  const { data: { user } } = await supabase.auth.getUser();
+
     const { error } = await supabase.from("Orders").insert({
       university_id: universityId,
       department_id: departmentId,
@@ -73,6 +77,8 @@ function RegistrationForm() {
       telegram_username: username,
       screenshot_url: screenshot ? screenshot.name : null,
       status: "pending",
+      auth_user_id: user.id   // 👈 link to Supabase Auth
+
     });
 
     if (error) alert("Error: " + error.message);
@@ -190,7 +196,8 @@ function RegistrationForm() {
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<RegistrationForm />} />
+      <Route path="/" element={<Login/>} />
+      <Route path="/register" element={<RegistrationForm />} />
       <Route path="/resources" element={<Resources />} />
       <Route path="/quiz/:id" element={<Quiz />} />
       <Route path="/uploadtest" element={<UploadTest />} /> {/* 👈 debug route */}
