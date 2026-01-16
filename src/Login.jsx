@@ -6,16 +6,27 @@ export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [session, setSession] = useState(null);
 
-  // Check if already logged in
+  // Recover session on load + listen for changes
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await redirectBasedOnApproval(user);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        redirectBasedOnApproval(session.user);
       }
-    };
-    checkUser();
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        if (session?.user) {
+          redirectBasedOnApproval(session.user);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   // 🔍 Helper: redirect based on approval status

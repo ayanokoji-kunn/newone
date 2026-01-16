@@ -7,7 +7,7 @@ import Quiz from "./Quiz";
 import UploadTest from "./uploadtest"; // 👈 make sure filename matches exactly
 import Login from "./Login"; // 👈 import login page
 
-function RegistrationForm() {
+function RegistrationForm({ session }) {
   const navigate = useNavigate();
 
   const [universities, setUniversities] = useState([]);
@@ -75,16 +75,7 @@ function RegistrationForm() {
   }, [username, navigate]);
 
   const handleSubmit = async () => {
-    // Get the currently logged-in Supabase Auth user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError) {
-      console.error("Auth error:", authError);
-      alert("Auth error: " + authError.message);
-      return;
-    }
-
-    if (!user) {
+    if (!session || !session.user) {
       alert("You must be logged in to register.");
       return;
     }
@@ -96,7 +87,7 @@ function RegistrationForm() {
       telegram_username: username,
       screenshot_url: screenshot ? screenshot.name : null,
       status: "pending",
-      auth_user_id: user.id // 👈 safe to use now
+      auth_user_id: session.user.id // 👈 safe to use now
     });
 
     if (error) {
@@ -216,10 +207,28 @@ function RegistrationForm() {
 }
 
 function App() {
+  const [session, setSession] = useState(null);
+
+  useEffect(() => {
+    // Recover session on load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
     <Routes>
       <Route path="/" element={<Login />} />
-      <Route path="/register" element={<RegistrationForm />} />
+      <Route path="/register" element={<RegistrationForm session={session} />} />
       <Route path="/resources" element={<Resources />} />
       <Route path="/quiz/:id" element={<Quiz />} />
       <Route path="/uploadtest" element={<UploadTest />} /> {/* 👈 debug route */}
