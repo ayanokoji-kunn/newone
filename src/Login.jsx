@@ -34,7 +34,7 @@ export default function Login() {
     const { data: orders, error } = await supabase
       .from("Orders")
       .select("status, university_id, department_id")
-      .eq("auth_user_id", user.id)   // 👈 match by auth_user_id
+      .eq("auth_user_id", user.id)
       .order("id", { ascending: false })
       .limit(1);
 
@@ -45,12 +45,11 @@ export default function Login() {
     }
 
     if (orders && orders.length > 0 && orders[0].status === "approved") {
-      // ✅ Send to resources with university & department
       navigate(
         `/resources?university=${orders[0].university_id}&department=${orders[0].department_id}`
       );
     } else {
-      navigate("/register"); // ✅ send to registration
+      navigate("/register");
     }
   };
 
@@ -58,12 +57,11 @@ export default function Login() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: null } // 👈 disables confirmation redirect
+      options: { emailRedirectTo: null }
     });
     if (error) {
       alert("Signup failed: " + error.message);
     } else {
-      // ✅ New signup → straight to registration
       navigate("/register");
     }
   };

@@ -14,7 +14,7 @@ export default function RegistrationForm() {
   const [statusMessage, setStatusMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
-  const [session, setSession] = useState(null); // NEW: track auth session
+  const [session, setSession] = useState(null); // track auth session
 
   // Recover session on load
   useEffect(() => {
@@ -103,7 +103,7 @@ export default function RegistrationForm() {
         telegram_username: username,
         screenshot_url: storagePath,
         status: "pending",
-        auth_user_id: session?.user?.id || null, // 👈 attach user if logged in
+        auth_user_id: session?.user?.id || null, // ✅ attach if logged in
       });
 
       if (insertError) throw insertError;
@@ -164,11 +164,13 @@ export default function RegistrationForm() {
           onChange={(e) => setDepartmentId(e.target.value)}
         >
           <option value="">Select Department</option>
-          {departments.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
+          {departments
+            .filter((d) => d.university_id === parseInt(universityId))
+            .map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name} — {d.price_birr} birr
+              </option>
+            ))}
         </select>
       </div>
 
