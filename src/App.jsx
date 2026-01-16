@@ -22,8 +22,16 @@ function RegistrationForm() {
   // Load universities and departments
   useEffect(() => {
     const fetchData = async () => {
-      const { data: uniData } = await supabase.from("University").select("*");
-      const { data: deptData } = await supabase.from("department").select("*");
+      const { data: uniData, error: uniError } = await supabase
+        .from("University")
+        .select("*");
+      const { data: deptData, error: deptError } = await supabase
+        .from("department")
+        .select("*");
+
+      if (uniError) console.error("University fetch error:", uniError);
+      if (deptError) console.error("Department fetch error:", deptError);
+
       setUniversities(uniData || []);
       setDepartments(deptData || []);
     };
@@ -68,7 +76,18 @@ function RegistrationForm() {
 
   const handleSubmit = async () => {
     // Get the currently logged-in Supabase Auth user
-  const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError) {
+      console.error("Auth error:", authError);
+      alert("Auth error: " + authError.message);
+      return;
+    }
+
+    if (!user) {
+      alert("You must be logged in to register.");
+      return;
+    }
 
     const { error } = await supabase.from("Orders").insert({
       university_id: universityId,
@@ -77,12 +96,15 @@ function RegistrationForm() {
       telegram_username: username,
       screenshot_url: screenshot ? screenshot.name : null,
       status: "pending",
-      auth_user_id: user.id   // 👈 link to Supabase Auth
-
+      auth_user_id: user.id // 👈 safe to use now
     });
 
-    if (error) alert("Error: " + error.message);
-    else alert("Submitted successfully! Please wait for admin approval.");
+    if (error) {
+      console.error("Insert error:", error);
+      alert("Error: " + error.message);
+    } else {
+      alert("Submitted successfully! Please wait for admin approval.");
+    }
   };
 
   const selectedUniversity = universities.find((u) => u.id === universityId);
@@ -196,7 +218,7 @@ function RegistrationForm() {
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Login/>} />
+      <Route path="/" element={<Login />} />
       <Route path="/register" element={<RegistrationForm />} />
       <Route path="/resources" element={<Resources />} />
       <Route path="/quiz/:id" element={<Quiz />} />
