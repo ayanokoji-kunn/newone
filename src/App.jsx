@@ -7,7 +7,7 @@ import Quiz from "./Quiz";
 import UploadTest from "./uploadtest"; // 👈 make sure filename matches exactly
 import Login from "./Login"; // 👈 import login page
 
-function RegistrationForm({ session }) {
+function RegistrationForm() {
   const navigate = useNavigate();
 
   const [universities, setUniversities] = useState([]);
@@ -75,9 +75,9 @@ function RegistrationForm({ session }) {
   }, [username, navigate]);
 
   const handleSubmit = async () => {
-    if (!session || !session.user) {
-      alert("You must be logged in to register.");
-      return;
+    // ✅ remember user locally for future auto-login
+    if (username) {
+      localStorage.setItem("username", username);
     }
 
     const { error } = await supabase.from("Orders").insert({
@@ -86,8 +86,8 @@ function RegistrationForm({ session }) {
       full_name: fullName,
       telegram_username: username,
       screenshot_url: screenshot ? screenshot.name : null,
-      status: "pending",
-      auth_user_id: session.user.id // 👈 safe to use now
+      status: "pending"
+      // ❌ removed login/session requirement
     });
 
     if (error) {
@@ -207,28 +207,40 @@ function RegistrationForm({ session }) {
 }
 
 function App() {
-  const [session, setSession] = useState(null);
+  const navigate = useNavigate();
 
+  // ✅ Auto-login on app load: if a saved username has an approved order, skip login/registration
   useEffect(() => {
-    // Recover session on load
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
+    const checkAutoLogin = async () => {
+      const savedUsername = localStorage.getItem("username");
+      if (!savedUsername) return;
 
-    // Listen for changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
+      const { data, error } = await supabase
+        .from("Orders")
+        .select("status, university_id, department_id")
+        .eq("telegram_username", savedUsername)
+        .order("id", { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error("Auto-login check error:", error);
+        return;
       }
-    );
 
-    return () => subscription.unsubscribe();
-  }, []);
+      if (data && data.length > 0 && data[0].status === "approved") {
+        navigate(
+          `/resources?university=${data[0].university_id}&department=${data[0].department_id}`
+        );
+      }
+    };
+
+    checkAutoLogin();
+  }, [navigate]);
 
   return (
     <Routes>
       <Route path="/" element={<Login />} />
-      <Route path="/register" element={<RegistrationForm session={session} />} />
+      <Route path="/register" element={<RegistrationForm />} />
       <Route path="/resources" element={<Resources />} />
       <Route path="/quiz/:id" element={<Quiz />} />
       <Route path="/uploadtest" element={<UploadTest />} /> {/* 👈 debug route */}
