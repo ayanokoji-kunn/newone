@@ -13,7 +13,19 @@ export default function RegistrationForm() {
   const [screenshot, setScreenshot] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState(""); // NEW: for showing screenshot preview
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [session, setSession] = useState(null); // NEW: track auth session
+
+  // Recover session on load
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => setSession(session)
+    );
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Fetch universities and departments
   useEffect(() => {
@@ -45,7 +57,6 @@ export default function RegistrationForm() {
           );
         } else if (order.status === "pending") {
           setStatusMessage("⏳ Waiting for admin approval...");
-          // NEW: generate signed URL for screenshot preview
           if (order.screenshot_url) {
             const { data: signed, error } = await supabase.storage
               .from("payment")
@@ -63,66 +74,49 @@ export default function RegistrationForm() {
 
   // Handle form submit with screenshot upload
   const handleSubmit = async () => {
-    console.log("Submit button clicked"); // 🔍 Confirm button works
-
     if (!screenshot) {
       alert("Please upload your payment screenshot.");
       return;
     }
 
-    console.log("Screenshot file:", screenshot); // 🔍 Confirm file is present
-
     setSubmitting(true);
 
     try {
-      // Build unique filename
       const ext = screenshot.name.split(".").pop();
       const filename = `${username}-${Date.now()}.${ext}`;
-      const storagePath = `screenshot/${filename}`; // ✅ matches folder in bucket
+      const storagePath = `screenshot/${filename}`;
 
-      console.log("Uploading to:", storagePath); // 🔍 Confirm path
-
-      // Upload file to private bucket "payment"
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("payment")
         .upload(storagePath, screenshot, {
           cacheControl: "3600",
           upsert: false,
         });
 
-      console.log("Upload result:", uploadData); // 🔍 Confirm upload success
-      console.log("Upload error:", uploadError); // 🔍 Show any error
+      if (uploadError) throw uploadError;
 
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Insert order row with screenshot path
+      // Insert order row with screenshot path + auth_user_id if available
       const { error: insertError } = await supabase.from("Orders").insert({
         university_id: parseInt(universityId),
         department_id: parseInt(departmentId),
         full_name: fullName,
         telegram_username: username,
-        screenshot_url: storagePath, // store path in DB
+        screenshot_url: storagePath,
         status: "pending",
+        auth_user_id: session?.user?.id || null, // 👈 attach user if logged in
       });
 
-      console.log("Insert error:", insertError); // 🔍 Show DB insert error
-      if (insertError) {
-        throw insertError;
-      }
+      if (insertError) throw insertError;
 
-      // NEW: generate signed URL immediately for preview
-      const { data: signed, error: signedError } = await supabase.storage
+      const { data: signed } = await supabase.storage
         .from("payment")
         .createSignedUrl(storagePath, 60);
-      if (signedError) console.error("Signed URL error:", signedError);
       if (signed?.signedUrl) setPreviewUrl(signed.signedUrl);
 
       alert("Submitted successfully! Please wait for admin approval.");
     } catch (err) {
       alert("Error: " + err.message);
-      console.error("Submission error:", err); // 🔍 Catch-all error
+      console.error("Submission error:", err);
     } finally {
       setSubmitting(false);
     }
@@ -193,7 +187,6 @@ export default function RegistrationForm() {
 
       {statusMessage && <p>{statusMessage}</p>}
 
-      {/* NEW: show screenshot preview if available */}
       {previewUrl && (
         <div>
           <p>Uploaded Screenshot Preview:</p>
