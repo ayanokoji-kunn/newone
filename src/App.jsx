@@ -5,7 +5,7 @@ import "./App.css";
 import Resources from "./Resources";
 import Quiz from "./Quiz";
 import UploadTest from "./uploadtest"; // 👈 make sure filename matches exactly
-import Login from "./Login"; // 👈 import login page
+// ❌ Removed Login import
 
 function RegistrationForm() {
   const navigate = useNavigate();
@@ -209,7 +209,7 @@ function RegistrationForm() {
 function App() {
   const navigate = useNavigate();
 
-  // ✅ Auto-login on app load: only redirect from "/" (login)
+  // ✅ Auto-login on app load: only redirect from "/" (registration)
   useEffect(() => {
     const checkAutoLogin = async () => {
       const savedUsername = localStorage.getItem("username");
@@ -231,7 +231,7 @@ function App() {
         data &&
         data.length > 0 &&
         data[0].status === "approved" &&
-        window.location.pathname === "/" // 👈 only redirect if on login page
+        window.location.pathname === "/" // 👈 only redirect if on registration page
       ) {
         navigate(
           `/resources?university=${data[0].university_id}&department=${data[0].department_id}`
@@ -244,7 +244,7 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Login />} />
+      <Route path="/" element={<RegistrationForm />} /> {/* 👈 default route */}
       <Route path="/register" element={<RegistrationForm />} />
       <Route path="/resources" element={<Resources />} />
       <Route path="/quiz/:id" element={<Quiz />} />
