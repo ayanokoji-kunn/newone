@@ -15,9 +15,14 @@ function RegistrationForm() {
   const [universityId, setUniversityId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [fullName, setFullName] = useState("");
-  const [username, setUsername] = useState("");
   const [screenshot, setScreenshot] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
+
+  // ✅ Get Telegram user info
+  const tg = window.Telegram?.WebApp;
+  const telegramUser = tg?.initDataUnsafe?.user;
+  const telegramId = telegramUser?.id;
+  const telegramUsername = telegramUser?.username;
 
   // Load universities and departments
   useEffect(() => {
@@ -40,13 +45,13 @@ function RegistrationForm() {
 
   // Poll Supabase every 5s for approval
   useEffect(() => {
-    if (!username) return;
+    if (!telegramId) return;
 
     const interval = setInterval(async () => {
       const { data, error } = await supabase
         .from("Orders")
         .select("status, university_id, department_id")
-        .eq("telegram_username", username)
+        .eq("telegram_id", telegramId)
         .order("id", { ascending: false })
         .limit(1);
 
@@ -72,19 +77,15 @@ function RegistrationForm() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [username, navigate]);
+  }, [telegramId, navigate]);
 
   const handleSubmit = async () => {
-    // ✅ remember user locally for future auto-login
-    if (username) {
-      localStorage.setItem("username", username);
-    }
-
     const { error } = await supabase.from("Orders").insert({
       university_id: universityId,
       department_id: departmentId,
       full_name: fullName,
-      telegram_username: username,
+      telegram_id: telegramId,
+      telegram_username: telegramUsername,
       screenshot_url: screenshot ? screenshot.name : null,
       status: "pending"
       // ❌ removed login/session requirement
@@ -140,12 +141,7 @@ function RegistrationForm() {
         onChange={(e) => setFullName(e.target.value)}
       />
 
-      <label>Telegram Username:</label>
-      <input
-        type="text"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-      />
+      {/* 👇 Username input removed, Telegram provides it automatically */}
 
       <label>Payment Screenshot:</label>
       <input type="file" onChange={(e) => setScreenshot(e.target.files[0])} />
@@ -212,13 +208,16 @@ function App() {
   // ✅ Auto-login on app load: only redirect from "/" (registration)
   useEffect(() => {
     const checkAutoLogin = async () => {
-      const savedUsername = localStorage.getItem("username");
-      if (!savedUsername) return;
+      const tg = window.Telegram?.WebApp;
+      const telegramUser = tg?.initDataUnsafe?.user;
+      const telegramId = telegramUser?.id;
+
+      if (!telegramId) return;
 
       const { data, error } = await supabase
         .from("Orders")
         .select("status, university_id, department_id")
-        .eq("telegram_username", savedUsername)
+        .eq("telegram_id", telegramId)
         .order("id", { ascending: false })
         .limit(1);
 
